@@ -66,3 +66,9 @@ python main.py
 
 Access the Lab
 Open your browser and navigate to http://localhost:8000.
+
+Usage & Security
+This tool is designed for educational and authorized security auditing purposes only. Ensure you have explicit permission before scanning any infrastructure that you do not own.
+
+Megadriod Innovation Labs © 2026
+Proprietary Enterprise Security Content
