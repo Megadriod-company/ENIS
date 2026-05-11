@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Megadriod Innovation Labs | Live Mapper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <style>
+        #cy { width: 100%; height: 500px; background: #0f172a; border-radius: 8px; }
+        .glass { background: rgba(255,255,255,0.05); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+
+    <!-- Header -->
+    <header class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900 shadow-md">
+        <div class="flex items-center gap-4">
+            <div>
+                <h1 class="text-lg md:text-xl font-semibold tracking-tight text-blue-500 leading-tight">
+                    MEGADRIOD <span class="text-white">INNOVATION LABS</span>
+                </h1>
+                <p class="text-xs md:text-sm text-slate-400 uppercase tracking-widest">
+                    Live Attack Surface Mapper <span class="font-semibold text-blue-400">v3.0</span>
+                </p>
+            </div>
+        </div>
+        <div class="px-3 py-2 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs flex items-center gap-2 font-bold tracking-wider">
+            <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+            LIVE ENGINE
+        </div>
+    </header>
+
+    <main class="p-6 grid grid-cols-12 gap-6 max-w-[1600px] mx-auto">
+        
+        <!-- Left: Controls & Target Intel -->
+        <div class="col-span-12 lg:col-span-3 flex flex-col gap-6">
+            
+            <div class="glass p-5 rounded-xl border-t-2 border-blue-500">
+                <h3 class="text-blue-400 font-bold mb-4 uppercase text-xs tracking-wider">Live Target Configuration</h3>
+                <div class="flex flex-col gap-3">
+                    <input type="text" id="targetInput" placeholder="e.g., scanme.nmap.org" class="w-full border border-slate-700 bg-slate-900 p-2 text-sm rounded text-slate-100 focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono">
+                    <button onclick="executeLiveScan()" id="scanBtn" class="bg-blue-600 hover:bg-blue-700 py-2 rounded text-xs font-semibold uppercase transition shadow">
+                        Execute Deep Scan
+                    </button>
+                    <!-- Feature 38: Data Export -->
+                    <button onclick="exportData()" id="exportBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded text-xs font-semibold uppercase transition shadow hidden">
+                        Export JSON Audit
+                    </button>
+                </div>
+            </div>
+
+            <!-- Network & SSL Intelligence -->
+            <div class="glass p-5 rounded-xl flex-grow">
+                <h3 class="text-indigo-400 font-bold mb-4 uppercase text-xs tracking-wider border-b border-slate-800 pb-2">Network Intelligence</h3>
+                <div id="intelBox" class="space-y-3">
+                    <p class="text-slate-500 italic text-xs">&gt; Awaiting scan execution...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle: Topology Map & Logs -->
+        <div class="col-span-12 lg:col-span-6 flex flex-col gap-6">
+            <div class="glass p-4 rounded-xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-slate-200">Active Topology</h2>
+                    <!-- Features 39 & 40: Graph Controls -->
+                    <div class="flex gap-2">
+                        <button onclick="changeLayout('concentric')" class="bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-[10px] uppercase font-bold text-slate-300">Concentric</button>
+                        <button onclick="changeLayout('breadthfirst')" class="bg-slate-800 hover:bg-slate-700 px-2 py-1 rounded text-[10px] uppercase font-bold text-slate-300">Tree</button>
+                        <button onclick="toggleLowRisk()" class="bg-blue-900/50 hover:bg-blue-800/50 px-2 py-1 rounded border border-blue-500/30 text-[10px] uppercase font-bold text-blue-300">Toggle Low Risk</button>
+                    </div>
+                </div>
+                <div id="cy"></div>
+            </div>
+
+            <!-- Feature 36: Node Inspector Panel -->
+            <div class="glass p-4 rounded-xl border border-indigo-500/30 bg-indigo-900/10 hidden" id="inspectorBox">
+                <h3 class="text-indigo-400 font-bold mb-2 uppercase text-xs tracking-wider border-b border-indigo-500/30 pb-2 flex justify-between">
+                    <span>🔍 Interactive Node Inspector</span>
+                    <span id="inspRiskBadge" class="px-2 py-0.5 rounded text-[10px]"></span>
+                </h3>
+                <div class="grid grid-cols-2 gap-4 text-sm mt-3">
+                    <div>
+                        <p class="text-slate-400 text-[10px] uppercase font-bold">Node Identification</p>
+                        <p id="inspName" class="font-mono text-blue-300 text-lg"></p>
+                        <p id="inspDesc" class="text-slate-300 text-xs mt-1"></p>
+                    </div>
+                    <div>
+                        <p class="text-slate-400 text-[10px] uppercase font-bold">Remediation & Advice</p>
+                        <p id="inspAdvice" class="text-slate-300 text-xs mt-1 italic border-l-2 border-indigo-500 pl-2"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass p-4 rounded-xl">
+                <h3 class="text-orange-400 font-bold mb-3 uppercase text-xs tracking-wider">Real-Time Audit Telemetry</h3>
+                <div id="log" class="bg-slate-900 border border-slate-800 text-green-400 font-mono text-[11px] p-3 rounded h-32 overflow-y-auto space-y-1">
+                    <p class="text-slate-500">&gt; Engine standing by. Awaiting target...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Exposed Services Audit -->
+        <div class="col-span-12 lg:col-span-3 flex flex-col gap-6">
+            <div class="glass p-5 rounded-xl h-full flex flex-col max-h-[850px]">
+                <h3 class="text-emerald-400 font-bold mb-4 uppercase text-xs tracking-wider border-b border-slate-800 pb-2">Exposed Services Audit</h3>
+                <div id="servicesBox" class="space-y-3 overflow-y-auto pr-2 flex-grow">
+                    <p class="text-slate-500 italic text-xs">&gt; Awaiting scan execution...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let cy;
+        let lastScanData = null; // Store for export feature
+
+        function logMessage(msg, type="info") {
+            const logBox = document.getElementById('log');
+            const color = type === "error" ? "text-red-400" : type === "warn" ? "text-yellow-400" : type === "success" ? "text-emerald-400" : "text-green-400";
+            logBox.innerHTML += `<p class="${color}">&gt; ${msg}</p>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        async function executeLiveScan() {
+            const target = document.getElementById('targetInput').value.trim();
+            const btn = document.getElementById('scanBtn');
+            const intelBox = document.getElementById('intelBox');
+            const servicesBox = document.getElementById('servicesBox');
+            const exportBtn = document.getElementById('exportBtn');
+            const inspectorBox = document.getElementById('inspectorBox');
+            
+            if (!target) return logMessage("Error: Target cannot be empty.", "error");
+
+            btn.disabled = true;
+            btn.innerText = "SCANNING...";
+            exportBtn.classList.add("hidden");
+            inspectorBox.classList.add("hidden");
+            intelBox.innerHTML = '<span class="animate-pulse text-blue-400 text-xs font-mono">&gt; Extracting DNS, Network, and Cryptographic metrics...</span>';
+            servicesBox.innerHTML = '';
+            logMessage(`Initiating deep TCP handshake sweep on ${target}...`);
+
+            try {
+                const response = await fetch(`/api/v1/live-scan?target=${encodeURIComponent(target)}`);
+                const data = await response.json();
+                lastScanData = data;
+
+                if (data.error) {
+                    logMessage(`Failed: ${data.error}`, "error");
+                    intelBox.innerHTML = `<p class="text-red-400 text-xs font-mono">${data.error}</p>`;
+                } else {
+                    exportBtn.classList.remove("hidden");
+                    logMessage(`Sweep completed in ${data.scan_duration_ms}ms.`, "success");
+                    logMessage(`Identified ${data.open_ports.length} exposed service(s). Stealth firewalls dropped ${data.filtered_ports} probes.`);
+
+                    let sslHtml = '';
+                    if (data.ssl_data) {
+                        sslHtml = `
+                            <div class="mt-4 p-3 bg-slate-900 rounded border border-slate-700 shadow-inner">
+                                <p class="text-xs font-bold text-indigo-400 mb-2 uppercase tracking-wider border-b border-slate-700 pb-1">Cryptographic Profile</p>
+                                <p class="text-[11px] font-mono text-slate-300"><span class="text-slate-500">Protocol:</span> ${data.ssl_data.tls_version}</p>
+                                <p class="text-[11px] font-mono text-slate-300"><span class="text-slate-500">Cipher:</span> ${data.ssl_data.cipher_suite}</p>
+                                <p class="text-[11px] font-mono text-slate-300"><span class="text-slate-500">Strength:</span> ${data.ssl_data.secret_bits}-bit</p>
+                                <p class="text-[11px] font-mono text-slate-300 mt-2"><span class="text-slate-500">Issuer:</span> ${data.ssl_data.issuer}</p>
+                            </div>
+                        `;
+                    }
+
+                    intelBox.innerHTML = `
+                        <div class="space-y-2">
+                            <p class="text-[11px] font-mono"><span class="font-bold text-slate-400 uppercase tracking-wider">Target Domain:</span><br><span class="text-blue-300">${data.target}</span></p>
+                            <p class="text-[11px] font-mono"><span class="font-bold text-slate-400 uppercase tracking-wider">Resolved IP:</span><br><span class="text-emerald-300">${data.resolved_ip}</span></p>
+                            <p class="text-[11px] font-mono"><span class="font-bold text-slate-400 uppercase tracking-wider">IP Classification:</span><br><span class="text-purple-300">${data.ip_class}</span></p>
+                        </div>
+                        ${sslHtml}
+                    `;
+
+                    if (data.open_ports.length === 0) {
+                        servicesBox.innerHTML = `<p class="text-emerald-400 text-xs font-mono">&gt; No standard ports exposed. Target is secured.</p>`;
+                    } else {
+                        data.open_ports.forEach(p => {
+                            let badgeStyle = p.risk === 'Critical' ? 'bg-red-500/20 text-red-400 border-red-500/30' 
+                                           : p.risk === 'High' ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' 
+                                           : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                            
+                            let detailHtml = '';
+                            if (p.http && p.http.status) {
+                                let secWarnings = p.http.sec_headers.length > 0 ? `<p class="text-red-400 mt-2 text-[10px] font-bold border-t border-red-500/30 pt-1">⚠️ Missing Headers:<br>${p.http.sec_headers.join('<br>')}</p>` : '';
+                                let probes = [];
+                                if (p.http.robots) probes.append("/robots.txt");
+                                if (p.http.sitemap) probes.append("/sitemap.xml");
+                                let probeStr = probes.length > 0 ? `<p class="text-emerald-400 mt-1">Found: ${probes.join(', ')}</p>` : '';
+
+                                detailHtml = `
+                                    <div class="mt-2 text-[10px] bg-slate-900 p-2 rounded border border-slate-700 font-mono text-slate-300">
+                                        <p><span class="font-bold text-blue-400">HTTP ${p.http.status}</span> | Server: ${p.http.server}</p>
+                                        ${p.http.waf ? `<p class="text-orange-400">WAF Detected: ${p.http.waf}</p>` : ''}
+                                        <p class="text-slate-500 mt-1">Methods: ${p.http.methods}</p>
+                                        ${probeStr}
+                                        ${secWarnings}
+                                    </div>`;
+                            } else if (p.banner) {
+                                detailHtml = `<div class="mt-2 text-[10px] bg-slate-900 border border-slate-800 text-green-400 p-2 rounded font-mono break-words">${p.banner}</div>`;
+                            }
+
+                            servicesBox.innerHTML += `
+                                <div class="p-3 bg-slate-800/50 rounded-lg border border-slate-700 shadow-sm">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-bold text-sm text-blue-100">Port ${p.port} <span class="text-[11px] text-slate-400 font-mono">(${p.service})</span></p>
+                                        </div>
+                                        <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded border ${badgeStyle}">${p.risk}</span>
+                                    </div>
+                                    ${detailHtml}
+                                </div>
+                            `;
+                        });
+                    }
+                    renderGraph(data.graph.nodes, data.graph.edges);
+                }
+            } catch (err) {
+                logMessage(`Network error communicating with backend.`, "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Execute Deep Scan";
+            }
+        }
+
+        // Features 36 & 37: Graph Engine and Interactive Inspector Logic
+        function renderGraph(nodes, edges) {
+            if (cy) cy.destroy(); 
+            cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: { nodes: nodes, edges: edges },
+                style: [
+                    { selector: 'node', style: { 'label': 'data(label)', 'font-size': '11px', 'font-weight': 'bold', 'color': '#f8fafc', 'text-valign': 'bottom', 'text-margin-y': '6px', 'text-outline-color': '#0f172a', 'text-outline-width': 2} },
+                    { selector: 'node[type="source"]', style: { 'background-color': '#3b82f6', 'shape': 'hexagon', 'width': '40px', 'height': '40px' } },
+                    { selector: 'node[type="target"]', style: { 'background-color': '#6366f1', 'shape': 'diamond', 'width': '40px', 'height': '40px' } },
+                    { selector: 'node[type="service"]', style: { 'shape': 'round-rectangle', 'width': '50px', 'height': '30px',
+                            'background-color': function(ele){
+                                return ele.data('risk') === 'Critical' ? '#ef4444' : ele.data('risk') === 'High' ? '#f97316' : '#10b981';
+                            }
+                        } 
+                    },
+                    { selector: 'edge', style: { 'width': 2, 'line-color': '#334155', 'target-arrow-color': '#334155', 'target-arrow-shape': 'triangle', 'label': 'data(label)', 'font-size': '9px', 'color': '#94a3b8', 'curve-style': 'bezier' } }
+                ],
+                layout: { name: 'concentric', directed: true, spacingFactor: 1.2 }
+            });
+
+            // The fix for "inspecting each nodes is not working"
+            cy.on('tap', 'node', function(evt){
+                const node = evt.target.data();
+                logMessage(`Inspecting Node: ${node.label.replace(/\n/g, ' ')}`, "info");
+                
+                const box = document.getElementById('inspectorBox');
+                box.classList.remove('hidden');
+                
+                document.getElementById('inspName').innerText = node.label.replace(/\n/g, ' - ');
+                document.getElementById('inspDesc').innerText = node.desc || "Core routing element.";
+                
+                let advice = "No specific remediation required. Ensure monitoring is active.";
+                let riskClass = "bg-slate-500/20 text-slate-400 border-slate-500/30 border";
+
+                if(node.type === "service") {
+                    if(node.risk === "Critical") {
+                        advice = `URGENT: Port ${node.port} (${node.service}) transmits unencrypted data or allows administrative control. Filter this port at the edge firewall immediately. Apply VPN/ZTNA requirements.`;
+                        riskClass = "bg-red-500/20 text-red-400 border-red-500/30 border";
+                    } else if (node.risk === "High") {
+                        advice = `WARNING: Port ${node.port} (${node.service}) exposes database or management interfaces. Restrict access using IP whitelisting.`;
+                        riskClass = "bg-orange-500/20 text-orange-400 border-orange-500/30 border";
+                    } else {
+                        advice = `Standard exposed port. Ensure ${node.service} is patched to the latest version and WAF policies are aggressively enforced.`;
+                        riskClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 border";
+                    }
+                }
+                
+                const badge = document.getElementById('inspRiskBadge');
+                badge.className = `px-2 py-0.5 rounded text-[10px] font-black uppercase ${riskClass}`;
+                badge.innerText = node.risk || "Infrastructure";
+                document.getElementById('inspAdvice').innerText = advice;
+            });
+        }
+
+        function changeLayout(type) {
+            if(cy) cy.layout({ name: type, spacingFactor: 1.2, animate: true }).run();
+        }
+
+        let lowRiskHidden = false;
+        function toggleLowRisk() {
+            if(!cy) return;
+            if(lowRiskHidden) {
+                cy.elements('node[risk="Low"]').show();
+                lowRiskHidden = false;
+            } else {
+                cy.elements('node[risk="Low"]').hide();
+                lowRiskHidden = true;
+            }
+        }
+
+        function exportData() {
+            if(!lastScanData) return;
+            const blob = new Blob([JSON.stringify(lastScanData, null, 2)], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `megadriod-audit-${lastScanData.target}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            logMessage("JSON Audit exported successfully.", "success");
+        }
+    </script>
+</body>
+</html>
